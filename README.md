@@ -1,2 +1,5 @@
 # NestFuzz
-NestFuzz
+
+NestFuzz is a structure-aware grey box fuzzer that developed based on AFL.
+NestFuzz mainly includes two phases. In the first phase of input processing logic modeling, NestFuzz first leverages taint analysis to identify input-accessing instructions. Then, NestFuzz recognizes the inter-field dependencies and hierarchy dependencies by understanding the control- and data-flow relationships between these input-accessing instructions. Last, NestFuzz proposes a novel data structure, namely Input Processing Tree, that can represent the whole structure of the input format.
+In the second phase of fuzzing, NestFuzz designs a cascading dependency-aware mutation strategy. Based on the recognized dependencies, whenever NestFuzz mutates (field or structure-level) the input, it cascadingly mutates other affected fields or substructures to maintain the structure validity. Therefore, NestFuzz can continuously and effectively generate new high-quality test cases.
