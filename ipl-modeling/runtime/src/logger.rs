@@ -284,22 +284,3 @@ impl Drop for Logger {
         self.fini();
     }
 }
-/*
-pub fn get_log_data(path: &Path) -> io::Result<LogData> {
-    let f = fs::File::open(path)?;
-    if f.metadata().unwrap().len() == 0 {
-        return Err(io::Error::new(io::ErrorKind::Other, "Could not find any interesting constraint!, Please make sure taint tracking works or running program correctly."));
-    }
-    let mut reader = io::BufReader::new(f);
-    match deserialize_from::<&mut io::BufReader<fs::File>, LogData>(&mut reader) {
-        Ok(v) => Ok(v),
-        Err(_) => Err(io::Error::new(io::ErrorKind::Other, "bincode parse error!")),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
-}
-*/

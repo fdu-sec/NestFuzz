@@ -424,9 +424,7 @@ impl ObjectStack {
                                 cur_ts.son = Some(vec![prev_ts, list[i].clone()]);
                             }
                             cur_ts.lb = hash_combine(cur_ts.son.as_ref().unwrap());
-                        //cur_ts 和 list[i]为同一层，同为son
                         } else {
-                            //合并得到的lb
                             cur_ts.end = list[i].end;
                             if let Some(ref mut son) = cur_ts.son {
                                 son.push(list[i].clone());
@@ -437,136 +435,7 @@ impl ObjectStack {
                     SegRelation::RightOverlap => {
                         new_list.push(cur_ts);
                         cur_ts = list[i].clone();
-
-                        /*
-                        if loop_handlers::ObjectStack::access_check(cur_ts.lb as u64, 0) == 0 {
-                            // lb comes from hash_combine
-                            cur_ts.end = list[i].end;
-                            loop_handlers::ObjectStack::insert_node(&mut cur_ts, list[i].clone());
-                            cur_ts.lb = hash_combine(cur_ts.son.as_ref().unwrap());
-                        }
-                        else if loop_handlers::ObjectStack::access_check(list[i].lb as u64, 0) == 0 {
-                            let prev_ts = cur_ts.clone();
-                            cur_ts = list[i].clone();
-                            cur_ts.begin = prev_ts.begin;
-                            loop_handlers::ObjectStack::insert_node(&mut cur_ts, prev_ts);
-                            cur_ts.lb = hash_combine(cur_ts.son.as_ref().unwrap());
-                        }
-                        else if cur_ts.son.is_none() || list[i].son.is_none() {
-                            eprintln!("RightOverlap son is none");
-                            //the funtion handle_overlap has filterd out this situation
-                            // println!("RightOverlap two none: cur_ts: {{lb: {:016X}, begin: {}, end:{}}}, list[i]: {{lb: {:016X}, begin: {}, end:{}}}", cur_ts.lb, cur_ts.begin, cur_ts.end, list[i].lb, list[i].begin, list[i].end);
-                            // println!("please check function: handle_overlap");
-                        }
-                        else {
-                            eprintln!("RightOverlap else");
-                            let overlap_begin = list[i].begin;
-                            let overlap_end = cur_ts.end;
-                            eprintln!("overlap range begin: {}, end: {}", overlap_begin, overlap_end);
-
-                            let mut left_son_counter = 0;
-                            let mut queue: Vec<TaintSeg> = vec![];
-                            // eprintln!("left queue:");
-                            queue.push(cur_ts.clone());
-                            while queue.len() != 0 {
-                                if let Some(top) = queue.pop() {
-                                    // eprintln!("top {:?}", top);
-                                    if let Some(son) = top.son {
-                                        for i in son {
-                                            if i.begin >= overlap_begin && i.end <= overlap_end {
-                                                if i.son.is_none() {
-                                                    left_son_counter += 1;
-                                                }
-                                                queue.push(i.clone());
-                                            } else if i.end > overlap_begin && i.end <= overlap_end {
-                                                queue.push(i.clone());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            let mut right_son_counter = 0;
-                            // eprintln!("right queue:");
-                            queue.clear();
-                            queue.push(list[i].clone());
-                            while queue.len() != 0 {
-                                if let Some(top) = queue.pop() {
-                                    // eprintln!("top {:?}", top);
-                                    if let Some(son) = top.son {
-                                        for i in son {
-                                            if i.begin <= overlap_begin && i.end >= overlap_end {
-                                                if i.son.is_none() {
-                                                    right_son_counter += 1;
-                                                }
-                                                queue.push(i.clone());
-                                            } else if i.begin >= overlap_begin && i.begin < overlap_end {
-                                                queue.push(i.clone());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            eprintln!("left: {}, right: {}", left_son_counter, right_son_counter);
-
-                            let mut queue: Vec<&mut TaintSeg> = vec![];
-                            let mut prev_ts = cur_ts.clone();
-                            cur_ts = none_ts.clone();
-                            cur_ts.begin = prev_ts.begin;
-                            cur_ts.end = list[i].end;
-
-                            // remove latter node left overlap node
-                            if left_son_counter > right_son_counter {
-                                list[i].begin = overlap_end;
-                                queue.push(&mut list[i]);
-                                while !queue.is_empty() {
-                                    let top = queue.pop().unwrap();
-                                    if let Some(ref mut son) = top.son {
-                                        loop_handlers::ObjectStack::remove_son(son, overlap_begin, overlap_end);
-                                        for i in son.iter_mut() {
-                                            if i.begin < overlap_end && i.end > overlap_end {
-                                                i.begin = overlap_end;
-                                                queue.push(i);
-                                            }
-                                        }
-                                    }
-                                }
-
-                            } else {
-                                prev_ts.end = overlap_begin;
-                                queue.push(&mut prev_ts);
-                                while !queue.is_empty() {
-                                    let top = queue.pop().unwrap();
-                                    if let Some(ref mut son) = top.son {
-                                        loop_handlers::ObjectStack::remove_son(son, overlap_begin, overlap_end);
-                                        for i in son.iter_mut() {
-                                            if i.begin < overlap_begin && i.end > overlap_begin {
-                                                i.end = overlap_begin;
-                                                queue.push(i);
-                                            }
-                                        }
-                                    }
-                                }
-
-                            }
-
-                            // eprintln!("{:?}", prev_ts);
-                            // eprintln!("{:?}", list[i]);
-                            cur_ts.son = Some(vec![prev_ts, list[i].clone()]);
-                            cur_ts.lb = hash_combine(cur_ts.son.as_ref().unwrap());
-                            // eprintln!("{:?}", cur_ts);
-
-                            // println!("RightOverlap else: cur_ts: {{lb: {:016X}, begin: {}, end:{}}}, list[i]: {{lb: {:016X}, begin: {}, end:{}}}", cur_ts.lb, cur_ts.begin, cur_ts.end, list[i].lb, list[i].begin, list[i].end);
-                            // println!("please check function: handle_overlap");
-                        }
-                        */
                     }
-                    // SegRelation::Disjoint => {
-                    //     eprintln!("Disjoint: cur_ts: {{lb: {:016X}, begin: {}, end: {}, son_is_none: {}}}, list[i]: {{lb: {:016X}, begin: {}, end: {}, son_is_none: {}}}", cur_ts.lb, cur_ts.begin, cur_ts.end, cur_ts.son.is_none(), list[i].lb, list[i].begin, list[i].end, list[i].son.is_none());
-                    //     new_list.push(cur_ts);
-                    //     cur_ts = list[i].clone();
-                    // },
                     _ => {}
                 }
             }
@@ -578,7 +447,6 @@ impl ObjectStack {
         }
         list.clear();
         list.append(&mut new_list);
-        // loop_handlers::ObjectStack::access_check(list[0].lb, list[0].end - list[0].begin);
     }
 
     // if size == 0 ,search lb in LC, return 0 if not found
@@ -692,9 +560,6 @@ impl ObjectStack {
             panic!("[ERR]: Function doesn't have iteration!! #[ERR]");
         }
     }
-
-    //退出循环、函数返回后，将当前栈顶pop，minimize, 插入上一层
-    //若hash不匹配说明栈不平衡，出错了
     pub fn pop_obj(&mut self, hash: u32) {
         let top = self.objs.pop();
         if top.is_some() {

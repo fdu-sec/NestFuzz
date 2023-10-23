@@ -204,7 +204,6 @@ pub extern "C" fn __dfsw___chunk_trace_cmp_tt(
         eprintln!("[DEBUG] __dfsw___chunk_trace_cmp_tt");
     }
     if in_loop_header == 1 {
-        // 传入loop_handler,计数，收集在loop_header中的label的重复使用次数，在pop时过滤只使用一次的
         let mut osl = OS.lock().unwrap();
         if let Some(ref mut os) = *osl {
             // The tainted value used in loop header may be the length.
@@ -230,8 +229,6 @@ pub extern "C" fn __dfsw___chunk_trace_cmp_tt(
     }
     if op == 32 || op == 33 {
         if lb1 != 0 && lb2 == 0 && is_cnst2 == 1 {
-            //log enum
-
             if arg2 == 0 {
                 return;
             }
@@ -260,9 +257,6 @@ pub extern "C" fn __dfsw___chunk_trace_cmp_tt(
             log_enum(size1, lb2 as u64, vec8);
             return;
         } else if lb1 != 0 && lb2 != 0 {
-            //maybe checksum
-            //一个标签对应的数据长度等于size,另一个大于size
-            //continous data
             if size1 != 0 && size2 != 0 {
                 let list1 = tag_set_find(lb1.try_into().unwrap());
                 let list2 = tag_set_find(lb2.try_into().unwrap());
@@ -553,48 +547,6 @@ pub extern "C" fn __dfsw___debug_inst_loc_fn(
         hash, fname_slice, line, col
     );
 }
-
-/*
-#[no_mangle]
-pub extern "C" fn __chunk_trace_gep_tt(
-    _a: *const i8,
-    _b: usize,
-    _c: u32,
-) {
-    panic!("Forbid calling __chunk_trace_gep_tt directly");
-}
-
-#[no_mangle]
-pub extern "C" fn __dfsw___chunk_trace_gep_tt(
-    addr: *const i8,
-    size: usize,
-    load_lb: u32,
-    _l0: DfsanLabel,
-    _l1: DfsanLabel,
-    _l2: DfsanLabel,
-) {
-    if loop_handlers::ObjectStack::access_check(load_lb as u64, 0) == 0 {
-        return;
-    }
-    let mut osl = OS.lock().unwrap();
-    if let Some(ref mut os) = *osl {
-        let arglen = if size == 0 {
-            unsafe { libc::strlen(addr) as usize }
-        } else {
-            size
-        };
-        let lb = unsafe { dfsan_read_label(addr, arglen) };
-        if lb <= 0 {
-            return;
-        }
-        infer_shape(lb, arglen as u32);
-        os.get_load_label(lb);
-        println!("offset: offset-lb:{}, paylaod-lb:{}", lb, load_lb);
-        log_cond(1, size as u32, lb as u64, load_lb as u64, ChunkField::Offset)
-    }
-
-}
-*/
 
 fn infer_eq_sign(op: u32, lb1: u32, lb2: u32) -> u32 {
     if op == defs::COND_ICMP_EQ_OP
