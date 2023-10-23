@@ -6,6 +6,9 @@
 - cmake 3.4+
 
 ## Build LLVM 10.0.0
+
+> This repo runs stably under llvm 10.0.0, we have not tested other llvm versions.
+
 ```
 apt-get install -y xz-utils cmake ninja-build gcc g++ python3 doxygen python3-distutils
 wget https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/llvm-project-10.0.0.tar.xz
