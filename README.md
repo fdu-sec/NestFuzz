@@ -55,7 +55,7 @@ make -j$(nproc)
 ```
 Start the fuzzer:
 ```
-/path/to/NestFuzz/afl-fuzz -m none -i /path/to/NestFuzz/testcases/images/tiff -o tiff_output -- /path/to/libtiff-fuzzer/tools/tiffsplit @@
+/path/to/NestFuzz/afl-fuzz -m none -d -i /path/to/NestFuzz/testcases/images/tiff -o tiff_output -- /path/to/libtiff-fuzzer/tools/tiffsplit @@
 ```
 Start the input processing logic modeling:
 ```
