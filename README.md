@@ -29,7 +29,7 @@ Step1: start the fuzzer:
 ```
 Step2: start the input processing logic modeling:
 ```
-python3 ipi.py -t 60 -o fuzzer_output_dir -l fuzzer_output_dir/log -- /path/to/modeling_program [...params...]
+python3 isi.py -t 60 -o fuzzer_output_dir -l fuzzer_output_dir/log -- /path/to/modeling_program [...params...]
 ```
 ## Example
 Download the latest source code of libtiff:
