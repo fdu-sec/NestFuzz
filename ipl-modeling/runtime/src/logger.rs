@@ -252,7 +252,7 @@ impl Logger {
         s.push_str(&format!("}}"));
     }
 
-    fn fini(&mut self) {
+    pub fn fini(&mut self) {
 
         self.enums_clean();
         let mut s = String::new();
@@ -281,6 +281,6 @@ impl Logger {
 
 impl Drop for Logger {
     fn drop(&mut self) {
-        self.fini();
+        // self.fini();
     }
 }

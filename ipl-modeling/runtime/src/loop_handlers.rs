@@ -881,7 +881,7 @@ impl ObjectStack {
 
 impl Drop for ObjectStack {
     fn drop(&mut self) {
-        self.fini();
+        // self.fini();
     }
 }
 

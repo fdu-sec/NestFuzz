@@ -118,9 +118,18 @@ pub extern "C" fn __dfsw___chunk_pop_obj(loop_hash: u32, _l0: DfsanLabel) -> boo
 #[no_mangle]
 pub extern "C" fn __chunk_object_stack_fini() {
     let mut osl = OS.lock().unwrap();
-    *osl = None;
+    if let Some(ref mut os) = *osl {
+        os.fini();
+    } else {
+        panic!("OBJECT_STACK FINI ERROR!");
+    }
+
     let mut lcl = LC.lock().unwrap();
-    *lcl = None;
+    if let Some(ref mut lc) = *lcl {
+        lc.fini();
+    } else {
+        panic!("LOGGER FINI ERROR!");
+    }
 }
 
 #[no_mangle]
