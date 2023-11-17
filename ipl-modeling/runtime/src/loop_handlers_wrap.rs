@@ -1,10 +1,11 @@
 use super::*;
 use crate::{loop_handlers::*, tag_set_wrap::*};
 use angora_common::{cond_stmt_base::*, defs};
+use is_main_thread::is_main_thread;
 use lazy_static::lazy_static;
 use libc::c_char;
 use std::convert::TryInto;
-use std::vec;
+use std::thread;
 use std::{
     // ffi::CStr,
     env,
@@ -37,6 +38,20 @@ pub extern "C" fn __dfsw___chunk_get_load_label(
     _l0: DfsanLabel,
     _l1: DfsanLabel,
 ) -> u32 {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return 0;
+        },
+    }
+
     let mut osl = OS.lock().unwrap();
     if let Some(ref mut os) = *osl {
         let arglen = if size == 0 {
@@ -72,6 +87,21 @@ pub extern "C" fn __dfsw___chunk_push_new_obj(
     _l1: DfsanLabel,
     _l2: DfsanLabel,
 ) {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     //One object for one loop
     if is_loop && loop_cnt != 0 {
         return;
@@ -89,6 +119,20 @@ pub extern "C" fn __chunk_dump_each_iter(_a: u32) {
 
 #[no_mangle]
 pub extern "C" fn __dfsw___chunk_dump_each_iter(loop_cnt: u32, _l0: DfsanLabel) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    } 
+
     if loop_cnt == 0 {
         return;
     } else {
@@ -106,6 +150,21 @@ pub extern "C" fn __chunk_pop_obj(_a: u32) -> bool {
 
 #[no_mangle]
 pub extern "C" fn __dfsw___chunk_pop_obj(loop_hash: u32, _l0: DfsanLabel) -> bool {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return false;
+        },
+    }
+
     let mut osl = OS.lock().unwrap();
     if let Some(ref mut os) = *osl {
         os.pop_obj(loop_hash);
@@ -117,6 +176,21 @@ pub extern "C" fn __dfsw___chunk_pop_obj(loop_hash: u32, _l0: DfsanLabel) -> boo
 
 #[no_mangle]
 pub extern "C" fn __chunk_object_stack_fini() {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let mut osl = OS.lock().unwrap();
     if let Some(ref mut os) = *osl {
         os.fini();
@@ -202,6 +276,20 @@ pub extern "C" fn __dfsw___chunk_trace_cmp_tt(
     _l6: DfsanLabel,
     _l7: DfsanLabel,
 ) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let lb1 = l2;
     let lb2 = l3;
     if lb1 == 0 && lb2 == 0 {
@@ -304,6 +392,20 @@ pub extern "C" fn __dfsw___chunk_trace_switch_tt(
     _l2: DfsanLabel,
     _l3: DfsanLabel,
 ) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let lb = l1;
     if lb == 0 {
         return;
@@ -345,6 +447,20 @@ pub extern "C" fn __dfsw___chunk_trace_cmpfn_tt(
     _l3: DfsanLabel,
     _l4: DfsanLabel,
 ) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let (arglen1, arglen2) = if size == 0 {
         unsafe { (libc::strlen(parg1) as usize, libc::strlen(parg2) as usize) }
     } else {
@@ -404,6 +520,20 @@ pub extern "C" fn __dfsw___chunk_trace_offsfn_tt(
     l0: DfsanLabel,
     _l1: DfsanLabel,
 ) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     // whence: SEEK_SET 0 ;SEEK_CUR 1; SEEK_END 2
     if l0 != 0 {
         log_cond(whence, offset as u32, l0 as u64, 0, ChunkField::Offset);
@@ -430,6 +560,20 @@ pub extern "C" fn __dfsw___chunk_trace_lenfn_tt(
     l2: DfsanLabel,
     _l3: DfsanLabel,
 ) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     if l1 == 0 && l2 == 0 {
         return;
     }
@@ -475,6 +619,20 @@ pub extern "C" fn __dfsw___chunk_trace_branch_tt(
     _l1: DfsanLabel,
     _l2: DfsanLabel,
 ) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let mut clsl = CLS.lock().unwrap();
     if let Some(ref mut cls) = *clsl {
         match itype {
@@ -509,6 +667,19 @@ pub extern "C" fn __dfsw___debug_inst_loc_fn(
     _l4: DfsanLabel,
     _l5: DfsanLabel,
 ) {
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
 
     if !cfg!(debug_assertions) {
         return;

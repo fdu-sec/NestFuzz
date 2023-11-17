@@ -582,7 +582,7 @@ impl ObjectStack {
                     self.insert_labels(&mut cur_list);
 
                     while self.cur_id >= jmp_func {
-                        let obj = self.objs.pop();
+                        let obj = self.objs.pop(); // TODO : check this in multi thread.
                         if obj.is_some() {
                             let real_obj = obj.unwrap();
                             let mut list = real_obj.sum;

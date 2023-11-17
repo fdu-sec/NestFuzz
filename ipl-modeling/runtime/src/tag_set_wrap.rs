@@ -1,7 +1,8 @@
 use crate::{len_label::*, tag_set::TagSet};
 use angora_common::{config, tag::TagSeg};
 use lazy_static::lazy_static;
-use std::{slice, sync::Mutex};
+use std::{slice, sync::Mutex, thread};
+use is_main_thread::is_main_thread;
 
 // Lazy static doesn't have reference count and won't call drop after the program finish.
 // So, we should call drop manually.. see ***_fini.
@@ -11,6 +12,21 @@ lazy_static! {
 
 #[no_mangle]
 pub extern "C" fn __angora_tag_set_insert(offset: u32) -> u32 {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return 0;
+        },
+    }
+
     let mut tsl = TS.lock().unwrap();
     if let Some(ref mut ts) = *tsl {
         ts.insert(offset) as u32
@@ -21,6 +37,21 @@ pub extern "C" fn __angora_tag_set_insert(offset: u32) -> u32 {
 
 #[no_mangle]
 pub extern "C" fn __angora_tag_set_combine(mut lb1: u32, mut lb2: u32) -> u32 {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return 0;
+        },
+    }
+
     let mut len_lb = 0;
     if is_len_label(lb1) {
         lb1 = get_normal_label(lb1);
@@ -43,6 +74,21 @@ pub extern "C" fn __angora_tag_set_combine(mut lb1: u32, mut lb2: u32) -> u32 {
 
 #[no_mangle]
 pub extern "C" fn __angora_tag_set_combine_n(lbs: *const u32, size: u32, infer_shape: bool) -> u32 {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return 0;
+        },
+    }
+
     let mut len_lb = 0;
     let lbs = unsafe { slice::from_raw_parts(lbs, size as usize) };
     let lbs = lbs
@@ -70,6 +116,21 @@ pub extern "C" fn __angora_tag_set_combine_n(lbs: *const u32, size: u32, infer_s
 // called in dfsan/pass/DFSanPass
 #[no_mangle]
 pub extern "C" fn __angora_tag_set_mark_sign(lb: u32) {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let mut tsl = TS.lock().unwrap();
     if let Some(ref mut ts) = *tsl {
         ts.set_sign(get_normal_label_usize(lb as usize));
@@ -78,6 +139,21 @@ pub extern "C" fn __angora_tag_set_mark_sign(lb: u32) {
 
 #[no_mangle]
 pub extern "C" fn __angora_tag_set_infer_shape_in_math_op(lb: u32, len: u32) {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let mut tsl = TS.lock().unwrap();
     if let Some(ref mut ts) = *tsl {
         ts.infer_shape2(get_normal_label_usize(lb as usize), len as usize);
@@ -87,6 +163,21 @@ pub extern "C" fn __angora_tag_set_infer_shape_in_math_op(lb: u32, len: u32) {
 // called in dfsan/pass/DFSanPass
 #[no_mangle]
 pub extern "C" fn __angora_tag_set_combine_and(lb: u32) {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     if config::DISABLE_INFER_SHAPE_IF_HAS_AND_OP {
         let mut tsl = TS.lock().unwrap();
         if let Some(ref mut ts) = *tsl {
@@ -97,11 +188,41 @@ pub extern "C" fn __angora_tag_set_combine_and(lb: u32) {
 
 #[no_mangle]
 pub extern "C" fn __angora_tag_set_fini() {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return;
+        },
+    }
+
     let mut tsl = TS.lock().unwrap();
     *tsl = None;
 }
 
 pub fn tag_set_find(lb: usize) -> Vec<TagSeg> {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return vec![];
+        },
+    }
+
     let mut tsl = TS.lock().unwrap();
     if let Some(ref mut ts) = *tsl {
         ts.find(get_normal_label_usize(lb))
@@ -111,6 +232,21 @@ pub fn tag_set_find(lb: usize) -> Vec<TagSeg> {
 }
 
 pub fn tag_set_get_sign(lb: usize) -> bool {
+    // TODO: Unsupported multi thread .
+    match is_main_thread() {
+        Some(true) => {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is the main thread.");
+            }
+        },
+        _ =>  {
+            if cfg!(debug_assertions) {
+                println!("[DEBUG] This is not the main thread. {:?}", thread::current().id());
+            }
+            return false;
+        },
+    }
+
     let tsl = TS.lock().unwrap();
     if let Some(ref ts) = *tsl {
         ts.get_sign(get_normal_label_usize(lb))
