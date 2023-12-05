@@ -64,5 +64,11 @@ python3 /path/to/NestFuzz/isi.py -t 60 -o /path/to/tiff_output -l /path/to/tiff_
 ## Cite
 If you use NestFuzz in your science work, please cite our paper:
 ```
-
+@inproceedings{deng2023nestfuzz,
+  title={NestFuzz: Enhancing Fuzzing with Comprehensive Understanding of Input Processing Logic},
+  author={Deng, Peng and Yang, Zhemin and Zhang, Lei and Yang, Guangliang and Hong, Wenzheng and Zhang, Yuan and Yang, Min},
+  booktitle={Proceedings of the 2023 ACM SIGSAC Conference on Computer and Communications Security},
+  pages={1272--1286},
+  year={2023}
+}
 ```
