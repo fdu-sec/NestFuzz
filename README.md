@@ -62,7 +62,7 @@ Start the input processing logic modeling:
 python3 /path/to/NestFuzz/isi.py -t 60 -o /path/to/tiff_output -l /path/to/tiff_output/log -- /path/to/libtiff-model/tools/tiffsplit @@
 ```
 ## Cite
-If you use NestFuzz in your science work, please cite our [paper](https://secsys.fudan.edu.cn/_upload/article/files/56/ed/788960544d56a38258aca7d3c8b5/216e599a-d6f6-4308-aa0b-ef45166a8431.pdf):
+If you use NestFuzz in your science work, please cite our [paper](https://dl.acm.org/doi/abs/10.1145/3576915.3623103):
 ```
 @inproceedings{deng2023nestfuzz,
   title={NestFuzz: Enhancing Fuzzing with Comprehensive Understanding of Input Processing Logic},
