@@ -36,7 +36,7 @@ public:
                            calledFunction->getName(), Category);
       }
       //this prints out the void bitcasted functions
-      else if (Function *voidFunc = dyn_cast<Function>(Caller->getCalledValue()->stripPointerCasts())) {
+      else if (Function *voidFunc = dyn_cast<Function>(Caller->getCalledOperand()->stripPointerCasts())) {
         // outs() << "Call to => " << voidFunc ->getName().str() << "\n";
         // outs() << voidFunc->getParent()->getModuleIdentifier() << "\n";
         return SCL_INSECTION(SCL, "angora", "fun",

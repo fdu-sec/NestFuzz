@@ -331,6 +331,7 @@ static void edit_params(u32 argc, char **argv) {
     }
   }
 
+  cc_params[cc_par_cnt++] = "-flegacy-pass-manager";
   cc_params[cc_par_cnt] = NULL;
 }
 
