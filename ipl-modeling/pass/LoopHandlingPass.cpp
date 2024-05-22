@@ -24,6 +24,9 @@ b
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
@@ -114,7 +117,7 @@ u32 hashName(std::string str) {
     return hash;
 }
 
-struct LoopHandlingPass : public PassInfoMixin<LoopHandlingPass> {
+struct LoopHandlingPass : PassInfoMixin<LoopHandlingPass> {
   // static char ID;
   unsigned long int RandSeed = 1;
   u32 FuncID;
@@ -169,9 +172,8 @@ struct LoopHandlingPass : public PassInfoMixin<LoopHandlingPass> {
   FunctionCallee ChunkTraceBranchTT;
   FunctionCallee DebugInstLocFn;
 
-
-  LoopHandlingPass() {}
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM) {
+    errs() << "Hi LoopHandling!\n";
     initVariables(M);
     auto &FAM = MAM.getResult<llvm::FunctionAnalysisManagerModuleProxy>(M).getManager();
     for (auto &F : M) {
@@ -573,7 +575,7 @@ void LoopHandlingPass::visitCallInst(Instruction *Inst) {
     processCallInst(Inst, hFunc);
     return;
   }
-// fix
+  // fix
   if (!Callee || isa<InlineAsm>(Caller->getCalledOperand()->stripPointerCasts())) {
     return;
   }
@@ -1121,22 +1123,46 @@ static RegisterStandardPasses
     RegisterLoopHandlingPass0(PassManagerBuilder::EP_EnabledOnOptLevel0,
                           registerLoopHandlingPass);
 
-*/
+
 extern "C" PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
   return {
     LLVM_PLUGIN_API_VERSION, "LoopHandlingPass", LLVM_VERSION_STRING,
     [](llvm::PassBuilder &PB) {
       // 注册为一个 function pass
-      PB.registerPipelineParsingCallback(
+      PB.registerOptimizerLastEPCallback(
         [](StringRef Name, ModulePassManager &MPM,
            ArrayRef<PassBuilder::PipelineElement>) {
-          if (Name == "loop-handling-pass") {  
             MPM.addPass(LoopHandlingPass());
             return true;
-          }
           return false;
         }
       );
     }
   };
+}
+*/
+
+llvm::PassPluginLibraryInfo getLoopHandlingPassPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "LoopHandlingPass", LLVM_VERSION_STRING,
+          [](PassBuilder &PB) {
+            PB.registerOptimizerLastEPCallback(
+                [](llvm::ModulePassManager &MPM,
+                   llvm::OptimizationLevel Level) {
+                  MPM.addPass(LoopHandlingPass());
+                });
+            PB.registerPipelineParsingCallback(
+                [](StringRef Name, llvm::ModulePassManager &MPM,
+                   ArrayRef<llvm::PassBuilder::PipelineElement>) {
+                  if (Name == "loop-handling-pass") {
+                    MPM.addPass(LoopHandlingPass());
+                    return true;
+                  }
+                  return false;
+                });
+          }};
+}
+
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+llvmGetPassPluginInfo() {
+  return getLoopHandlingPassPluginInfo();
 }

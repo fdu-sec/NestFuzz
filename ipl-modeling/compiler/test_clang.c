@@ -106,7 +106,7 @@ static void add_loop_handling_pass() {
   cc_params[cc_par_cnt++] = "-Xclang";
   cc_params[cc_par_cnt++] = "-load";
   cc_params[cc_par_cnt++] = "-Xclang";
-  cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libLoopHandlingPass.so", obj_path);
+  cc_params[cc_par_cnt++] = alloc_printf("-fpass-plugin=%s/pass/libLoopHandlingPass.so", obj_path);
   cc_params[cc_par_cnt++] = "-mllvm";
   cc_params[cc_par_cnt++] = 
         alloc_printf("-chunk-exploitation-list=%s/rules/exploitation_list.txt", obj_path);
