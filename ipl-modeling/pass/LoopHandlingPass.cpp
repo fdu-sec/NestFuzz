@@ -20,7 +20,7 @@ b
 */
 
 
-
+#include "DataFlowSanitizer.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -1149,6 +1149,7 @@ llvm::PassPluginLibraryInfo getLoopHandlingPassPluginInfo() {
                 [](llvm::ModulePassManager &MPM,
                    llvm::OptimizationLevel Level) {
                   MPM.addPass(LoopHandlingPass());
+                  //MPM.addPass(DataFlowSanitizerPass());
                 });
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, llvm::ModulePassManager &MPM,
@@ -1163,6 +1164,7 @@ llvm::PassPluginLibraryInfo getLoopHandlingPassPluginInfo() {
                     MPM.addPass(LoopHandlingPass());
                     */
                     MPM.addPass(LoopHandlingPass());
+                    //MPM.addPass(DataFlowSanitizerPass());
                     return true;
                   }
                   return false;

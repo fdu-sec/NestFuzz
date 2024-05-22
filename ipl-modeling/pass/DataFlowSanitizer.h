@@ -14,13 +14,13 @@
 
 namespace llvm{
 
-class DataFlowSanitizerPass
-    : public llvm::PassInfoMixin<DataFlowSanitizerPass> {
+struct DFSanPass
+    : public llvm::PassInfoMixin<DFSanPass> {
 private:
   std::vector<std::string> ABIListFiles;
 
 public:
-  DataFlowSanitizerPass(
+  DFSanPass(
       const std::vector<std::string> &ABIListFiles = std::vector<std::string>())
       : ABIListFiles(ABIListFiles) {}
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);

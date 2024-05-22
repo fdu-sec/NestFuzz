@@ -3748,7 +3748,7 @@ void DFSanVisitor::visitPHINode(PHINode &PN) {
   DFSF.PHIFixups.push_back({&PN, ShadowPN, OriginPN});
 }
 
-PreservedAnalyses DataFlowSanitizerPass::run(Module &M,
+PreservedAnalyses DFSanPass::run(Module &M,
                                              ModuleAnalysisManager &AM) {
   /*
   if (!ABIList) {cd
@@ -3803,7 +3803,6 @@ static RegisterStandardPasses
 // RegisterAfldfPass(PassManagerBuilder::EP_EarlyAsPossible,
 // registerAflDFSanPass);
 // add end
-*/
 
 extern "C" PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
   return {
@@ -3812,17 +3811,43 @@ extern "C" PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
             PB.registerOptimizerLastEPCallback(
                 [](llvm::ModulePassManager &MPM,
                    llvm::OptimizationLevel Level) {
-                  MPM.addPass(DataFlowSanitizerPass());
+                  MPM.addPass(DFSanPass());
                 });
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, llvm::ModulePassManager &MPM,
                    ArrayRef<llvm::PassBuilder::PipelineElement>) {
                   if (Name == "dfsan-pass") {
-                    MPM.addPass(DataFlowSanitizerPass());
+                    MPM.addPass(DFSanPass());
                     return true;
                   }
                   return false;
                 });
           }
   };
+}
+*/
+
+llvm::PassPluginLibraryInfo getDFSanPassPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "DFSanPass", LLVM_VERSION_STRING,
+          [](PassBuilder &PB) {
+            PB.registerOptimizerLastEPCallback(
+                [](llvm::ModulePassManager &MPM,
+                   llvm::OptimizationLevel Level) {
+                  MPM.addPass(DFSanPass());
+                });
+            PB.registerPipelineParsingCallback(
+                [](StringRef Name, llvm::ModulePassManager &MPM,
+                   ArrayRef<llvm::PassBuilder::PipelineElement>) {
+                  if (Name == "dfsan-pass") {
+                    MPM.addPass(DFSanPass());
+                    return true;
+                  }
+                  return false;
+                });
+          }};
+}
+
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+llvmGetPassPluginInfo() {
+  return getDFSanPassPluginInfo();
 }

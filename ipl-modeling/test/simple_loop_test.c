@@ -44,7 +44,7 @@ int main()
 /NestFuzz_t/ipl-modeling/install/lib/libruntime.so /NestFuzz_t/ipl-modeling/install/lib/libDFSanIO.a \
 -lstdc++ -lrt -Wl,--no-as-needed -Wl,--gc-sections -ldl -lpthread -lm
 
-//clang -o loopTest loopTest.c \
+//gdb --args clang -o loopTest loopTest.c \
 -Xclang -load -Xclang /nestfuzz/ipl-modeling/install/pass/libDFSanPass.so \
 -Xclang -fpass-plugin=/nestfuzz/ipl-modeling/install/pass/libDFSanPass.so \
 -mllvm -chunk-dfsan-abilist=/nestfuzz/ipl-modeling/install/rules/angora_abilist.txt \
