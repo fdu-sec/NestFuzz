@@ -103,13 +103,36 @@ static u8 check_if_assembler(u32 argc, const char **argv) {
 }
 
 static void add_loop_handling_pass() {
+
+  // 加载Pass插件
   cc_params[cc_par_cnt++] = "-Xclang";
   cc_params[cc_par_cnt++] = "-load";
   cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libLoopHandlingPass.so", obj_path);
+
+  // 使用fpass-plugin来指定使用的Pass
+  cc_params[cc_par_cnt++] = "-Xclang";
+  // cc_params[cc_par_cnt++] = "-fpass-plugin";
+  // cc_params[cc_par_cnt++] = "-Xclang";
   cc_params[cc_par_cnt++] = alloc_printf("-fpass-plugin=%s/pass/libLoopHandlingPass.so", obj_path);
+
+  // 指定Pass参数
   cc_params[cc_par_cnt++] = "-mllvm";
   cc_params[cc_par_cnt++] = 
         alloc_printf("-chunk-exploitation-list=%s/rules/exploitation_list.txt", obj_path);
+
+  // 添加其他必要的参数，例如passes名
+  // cc_params[cc_par_cnt++] = "-mllvm";
+  // cc_params[cc_par_cnt++] = "-passes=loop-handling-pass";
+  /*
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = "-load";
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libLoopHandlingPass.so", obj_path);
+  cc_params[cc_par_cnt++] = "-mllvm";
+  cc_params[cc_par_cnt++] = 
+        alloc_printf("-chunk-exploitation-list=%s/rules/exploitation_list.txt", obj_path);
+  */
 }
 
 static void add_runtime() {
@@ -146,28 +169,65 @@ static void add_runtime() {
 }
 
 static void add_dfsan_pass() {
-    cc_params[cc_par_cnt++] = "-Xclang";
-    cc_params[cc_par_cnt++] = "-load";
-    cc_params[cc_par_cnt++] = "-Xclang";
-    cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libDFSanPass.so", obj_path);
+  // 加载Pass插件
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = "-load";
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libDFSanPass.so", obj_path);
+
+  // 使用fpass-plugin来指定使用的Pass
+  cc_params[cc_par_cnt++] = "-Xclang";
+  // cc_params[cc_par_cnt++] = "-fpass-plugin";
+  // cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = alloc_printf("-fpass-plugin=%s/pass/libDFSanPass.so", obj_path);
+
+  // 指定Pass参数
+  cc_params[cc_par_cnt++] = "-mllvm";
+  cc_params[cc_par_cnt++] =
+      alloc_printf("-chunk-dfsan-abilist=%s/rules/angora_abilist.txt", obj_path);
+  cc_params[cc_par_cnt++] = "-mllvm";
+  cc_params[cc_par_cnt++] =
+      alloc_printf("-chunk-dfsan-abilist=%s/rules/dfsan_abilist.txt", obj_path);
+  if (need_lz != 0 ) {
     cc_params[cc_par_cnt++] = "-mllvm";
     cc_params[cc_par_cnt++] =
-        alloc_printf("-chunk-dfsan-abilist=%s/rules/angora_abilist.txt", obj_path);
+        alloc_printf("-chunk-dfsan-abilist=%s/rules/zlib_abilist.txt", obj_path);
+  }
+  char *rule_list = getenv(TAINT_RULE_LIST_VAR);
+  if (rule_list) {
     cc_params[cc_par_cnt++] = "-mllvm";
     cc_params[cc_par_cnt++] =
-        alloc_printf("-chunk-dfsan-abilist=%s/rules/dfsan_abilist.txt", obj_path);
-    if (need_lz != 0 ) {
-      cc_params[cc_par_cnt++] = "-mllvm";
-      cc_params[cc_par_cnt++] =
-          alloc_printf("-chunk-dfsan-abilist=%s/rules/zlib_abilist.txt", obj_path);
-    }
-    
-    char *rule_list = getenv(TAINT_RULE_LIST_VAR);
-    if (rule_list) {
-      cc_params[cc_par_cnt++] = "-mllvm";
-      cc_params[cc_par_cnt++] =
-          alloc_printf("-chunk-dfsan-abilist=%s", rule_list);
-    }
+        alloc_printf("-chunk-dfsan-abilist=%s", rule_list);
+  }
+
+  // 添加其他必要的参数，例如passes名
+  // cc_params[cc_par_cnt++] = "-mllvm";
+  // cc_params[cc_par_cnt++] = "-passes=dfsan-pass";
+
+  /*
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = "-load";
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libDFSanPass.so", obj_path);
+  cc_params[cc_par_cnt++] = "-mllvm";
+  cc_params[cc_par_cnt++] =
+      alloc_printf("-chunk-dfsan-abilist=%s/rules/angora_abilist.txt", obj_path);
+  cc_params[cc_par_cnt++] = "-mllvm";
+  cc_params[cc_par_cnt++] =
+      alloc_printf("-chunk-dfsan-abilist=%s/rules/dfsan_abilist.txt", obj_path);
+  if (need_lz != 0 ) {
+    cc_params[cc_par_cnt++] = "-mllvm";
+    cc_params[cc_par_cnt++] =
+        alloc_printf("-chunk-dfsan-abilist=%s/rules/zlib_abilist.txt", obj_path);
+  }
+  
+  char *rule_list = getenv(TAINT_RULE_LIST_VAR);
+  if (rule_list) {
+    cc_params[cc_par_cnt++] = "-mllvm";
+    cc_params[cc_par_cnt++] =
+        alloc_printf("-chunk-dfsan-abilist=%s", rule_list);
+  }
+  */
 }
 
 static void edit_params(u32 argc, char **argv) {
@@ -230,6 +290,8 @@ static void edit_params(u32 argc, char **argv) {
 
     cc_params[cc_par_cnt++] = cur;
   }
+  // cc_params[cc_par_cnt++] = "-O0";
+  // cc_params[cc_par_cnt++] = "-emit-llvm";  
 
   if (!maybe_assembler) {
     if (clang_type == CLANG_TRACK_TYPE) {

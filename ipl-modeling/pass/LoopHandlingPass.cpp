@@ -1154,6 +1154,14 @@ llvm::PassPluginLibraryInfo getLoopHandlingPassPluginInfo() {
                 [](StringRef Name, llvm::ModulePassManager &MPM,
                    ArrayRef<llvm::PassBuilder::PipelineElement>) {
                   if (Name == "loop-handling-pass") {
+                    /*
+                    MPM.addPass(llvm::createLoopSimplifyPass());
+                    MPM.addPass(llvm::ScalarEvolutionWrapperPass());
+                    MPM.addPass(llvm::LoopInfoWrapperPass());
+                    MPM.addPass(llvm::DominatorTreeWrapperPass());
+                    MPM.addPass(llvm::PostDominatorTreeWrapperPass());
+                    MPM.addPass(LoopHandlingPass());
+                    */
                     MPM.addPass(LoopHandlingPass());
                     return true;
                   }
