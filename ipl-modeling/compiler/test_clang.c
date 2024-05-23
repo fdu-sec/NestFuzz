@@ -360,12 +360,12 @@ static void edit_params(u32 argc, char **argv) {
       cc_params[cc_par_cnt++] = "-Wl,--end-group";
     }
     else if (clang_type == CLANG_TRACK_TYPE) {
-    cc_params[cc_par_cnt++] = alloc_printf("-L%s/lib/libcxx_track/", obj_path);
-    cc_params[cc_par_cnt++] = "-stdlib=libc++";
-    cc_params[cc_par_cnt++] = "-Wl,--start-group";
-    cc_params[cc_par_cnt++] = "-lc++abitrack";
-    cc_params[cc_par_cnt++] = "-lc++abi";
-    cc_params[cc_par_cnt++] = "-Wl,--end-group";
+      cc_params[cc_par_cnt++] = alloc_printf("-L%s/lib/libcxx_track/", obj_path);
+      // cc_params[cc_par_cnt++] = "-stdlib=libc++";
+      cc_params[cc_par_cnt++] = "-Wl,--start-group";
+      cc_params[cc_par_cnt++] = "-lc++abitrack";
+      cc_params[cc_par_cnt++] = "-lc++abi";
+      cc_params[cc_par_cnt++] = "-Wl,--end-group";
     }
   }
 
