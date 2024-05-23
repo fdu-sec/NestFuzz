@@ -60,7 +60,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "DataFlowSanitizer.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
@@ -415,7 +414,7 @@ transformFunctionAttributes(const TransformedFunction &TransformedFunction,
                             llvm::ArrayRef(ArgumentAttributes));
 }
 
-class DataFlowSanitizer {
+class DataFlowSanitizer : public PassInfoMixin<DataFlowSanitizer>{
   friend struct DFSanFunction;
   friend class DFSanVisitor;
 
@@ -525,7 +524,7 @@ class DataFlowSanitizer {
   AttributeMask ReadOnlyNoneAttrs;
   StringSet<> CombineTaintLookupTableNames;
   
-  // std::vector<std::string> ABIListFiles;
+  std::vector<std::string> ABIListFiles;
   // DFSanABIList ABIList;
 
   /// Memory map parameters used in calculation mapping application addresses
@@ -587,9 +586,20 @@ class DataFlowSanitizer {
   const uint64_t NumOfElementsInArgOrgTLS = ArgTLSSize / OriginWidthBytes;
 
 public:
-  DataFlowSanitizer(const std::vector<std::string> &ABIListFiles);
-  // PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
-  bool runImpl(Module &M, llvm::function_ref<TargetLibraryInfo &(Function &)> GetTLI);
+  explicit DataFlowSanitizer(const std::vector<std::string> &ABIListFiles) 
+  : ABIListFiles(ABIListFiles) {
+    std::vector<std::string> AllABIListFiles(std::move(this->ABIListFiles));
+    llvm::append_range(AllABIListFiles, ClABIListFiles);
+    // 创建特例列表
+    ABIList.set(SpecialCaseList::createOrDie(AllABIListFiles, *vfs::getRealFileSystem()));
+
+    // 如果有额外的查找表需要合并
+    for (StringRef v : ClCombineTaintLookupTables) {
+        CombineTaintLookupTableNames.insert(v);
+    }
+  };
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+  bool runImpl(Module &M, function_ref<TargetLibraryInfo &(Function &)> GetTLI);
   /*
   DataFlowSanitizer(const std::vector<std::string> &ABIListFiles) {}
   DataFlowSanitizer(const std::vector<std::string> &ABIListFiles) 
@@ -912,7 +922,7 @@ bool LibAtomicFunction(const Function &F) {
 
 } // end anonymous namespace
 
-
+/*
 DataFlowSanitizer::DataFlowSanitizer(
     const std::vector<std::string> &ABIListFiles) {
   std::vector<std::string> AllABIListFiles(std::move(ABIListFiles));
@@ -924,7 +934,7 @@ DataFlowSanitizer::DataFlowSanitizer(
   for (StringRef v : ClCombineTaintLookupTables)
     CombineTaintLookupTableNames.insert(v);
 }
-
+*/
 // 缺少initial
 /*
 DataFlowSanitizer::DataFlowSanitizer(
@@ -2867,8 +2877,8 @@ void DFSanFunction::storePrimitiveShadowOrigin(Value *Addr, uint64_t Size,
       DFS.getShadowOriginAddress(Addr, InstAlignment, Pos);
 
   const unsigned ShadowVecSize = 8;
-  // assert(ShadowVecSize * DFS.ShadowWidthBits <= 128 &&
-  //        "Shadow vector is too large!");
+  assert(ShadowVecSize * DFS.ShadowWidthBits <= 128 &&
+         "Shadow vector is too large!");
 
   uint64_t Offset = 0;
   uint64_t LeftSize = Size;
@@ -3748,41 +3758,76 @@ void DFSanVisitor::visitPHINode(PHINode &PN) {
   DFSF.PHIFixups.push_back({&PN, ShadowPN, OriginPN});
 }
 
-PreservedAnalyses DFSanPass::run(Module &M,
+PreservedAnalyses DataFlowSanitizer::run(Module &M,
                                              ModuleAnalysisManager &AM) {
+  /*
+  if (!ABIList) {
+    // Initialize the SpecialCaseList and other settings here.
+    std::vector<std::string> AllABIListFiles(ABIListFiles);
+    append_range(AllABIListFiles, ClABIListFiles);
+    ABIList = SpecialCaseList::createOrDie(AllABIListFiles, *vfs::getRealFileSystem());
+
+    for (StringRef v : ClCombineTaintLookupTables) {
+      CombineTaintLookupTableNames.insert(v);
+    }
+  }
+  */
   errs() << "DFSan run!\n";
   auto GetTLI = [&](Function &F) -> TargetLibraryInfo & {
     auto &FAM =
         AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
     return FAM.getResult<TargetLibraryAnalysis>(F);
   };
-  if (DataFlowSanitizer(ABIListFiles).runImpl(M, GetTLI))
-    return PreservedAnalyses::none();
-  return PreservedAnalyses::all();
+  
+  if (!DataFlowSanitizer(ClABIListFiles).runImpl(M, GetTLI))
+    return PreservedAnalyses::all();
+
+  PreservedAnalyses PA = PreservedAnalyses::none();
+  // GlobalsAA is considered stateless and does not get invalidated unless
+  // explicitly invalidated; PreservedAnalyses::none() is not enough. Sanitizers
+  // make changes that require GlobalsAA to be invalidated.
+  PA.abandon<GlobalsAA>();
+  return PA;
 }
 
+/*
+// add start
+static RegisterPass<DataFlowSanitizer> X("dfsan_pass", "DFSan Pass");
 
-llvm::PassPluginLibraryInfo getDFSanPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "DFSanPass", LLVM_VERSION_STRING,
-          [](PassBuilder &PB) {
-            PB.registerOptimizerLastEPCallback(
-                [](llvm::ModulePassManager &MPM,
-                   llvm::OptimizationLevel Level) {
-                  MPM.addPass(DFSanPass());
-                });
-            PB.registerPipelineParsingCallback(
-                [](StringRef Name, llvm::ModulePassManager &MPM,
-                   ArrayRef<llvm::PassBuilder::PipelineElement>) {
-                  if (Name == "dfsan-pass") {
-                    MPM.addPass(DFSanPass());
-                    return true;
-                  }
-                  return false;
-                });
-          }};
+/*
+static void registerAflDFSanPass(const PassManagerBuilder &,
+                                 llvm::legacy::PassManagerBase &PM) {
+
+  PM.add(new DataFlowSanitizer());
 }
 
-extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
-llvmGetPassPluginInfo() {
-  return getDFSanPassPluginInfo();
+static RegisterStandardPasses
+    RegisterAflDFSanPass(PassManagerBuilder::EP_OptimizerLast,
+                         registerAflDFSanPass);
+
+static RegisterStandardPasses
+    RegisterAflDFSanPass0(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                          registerAflDFSanPass);
+
+// static RegisterStandardPasses
+// RegisterAfldfPass(PassManagerBuilder::EP_EarlyAsPossible,
+// registerAflDFSanPass);
+// add end
+*/
+
+extern "C" PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
+  return {
+    LLVM_PLUGIN_API_VERSION, "DFSanPass", LLVM_VERSION_STRING,
+    [](PassBuilder &PB) {
+      PB.registerPipelineParsingCallback(
+        [](StringRef Name, ModulePassManager &MPM,
+           ArrayRef<PassBuilder::PipelineElement>) {
+          if (Name == "dfsan-pass") {
+            MPM.addPass(DataFlowSanitizer(ClABIListFiles));
+            return true;
+          }
+          return false;
+        });
+    }
+  };
 }
