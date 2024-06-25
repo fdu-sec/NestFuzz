@@ -73,3 +73,58 @@ Start the input processing logic modeling:
 ```
 python3 /path/to/NestFuzz/isi.py -t 60 -o /path/to/tiff_output -l /path/to/tiff_output/log -- /path/to/libtiff-model/tools/tiffsplit @@
 ```
+## 🏆Vulnerabilities Found by NestFuzz
+|  ID  |  CVE ID        | Software | CVSS Score |
+| :---:  | :--------------: | :------: | :---: |
+|  1   | CVE-2022-40438 | Bento4 | 6.5 MEDIUM |
+|  2   | CVE-2022-40439 | Bento4 | 6.5 MEDIUM |
+|  3   | CVE-2022-43032 | Bento4 | 6.5 MEDIUM |
+|  4   | CVE-2022-43033 | Bento4 | 6.5 MEDIUM |
+|  5   | CVE-2022-43034 | Bento4 | 6.5 MEDIUM |
+|  6   | CVE-2022-43035 | Bento4 | 6.5 MEDIUM |
+|  7   | CVE-2022-43037 | Bento4 | 6.5 MEDIUM |
+|  8   | CVE-2022-43038 | Bento4 | 6.5 MEDIUM |
+|  9   | CVE-2022-43039 | GPAC | 5.5 MEDIUM |
+|  10   | CVE-2022-43040 | GPAC | 7.8 HIGH |
+|  11   | CVE-2022-43042 | GPAC | 7.8 HIGH |
+|  12   | CVE-2022-43043 | GPAC | 5.5 MEDIUM |
+|  13   | CVE-2022-43044 | GPAC | 5.5 MEDIUM |
+|  14   | CVE-2022-43045 | GPAC | 5.5 MEDIUM |
+|  15   | CVE-2022-43254 | GPAC | 5.5 MEDIUM |
+|  16   | CVE-2022-43255 | GPAC | 5.5 MEDIUM |
+|  17   | CVE-2022-43235 | libde265 | 6.5 MEDIUM |
+|  18   | CVE-2022-43236 | libde265 | 6.5 MEDIUM |
+|  19   | CVE-2022-43237 | libde265 | 6.5 MEDIUM |
+|  20   | CVE-2022-43238 | libde265 | 6.5 MEDIUM |
+|  21   | CVE-2022-43239 | libde265 | 6.5 MEDIUM |
+|  22   | CVE-2022-43240 | libde265 | 6.5 MEDIUM |
+|  23   | CVE-2022-43241 | libde265 | 6.5 MEDIUM |
+|  24   | CVE-2022-43242 | libde265 | 6.5 MEDIUM |
+|  25   | CVE-2022-43243 | libde265 | 6.5 MEDIUM |
+|  26   | CVE-2022-43244 | libde265 | 6.5 MEDIUM |
+|  27   | CVE-2022-43245 | libde265 | 6.5 MEDIUM |
+|  28   | CVE-2022-43248 | libde265 | 6.5 MEDIUM |
+|  29   | CVE-2022-43249 | libde265 | 6.5 MEDIUM |
+|  30   | CVE-2022-43250 | libde265 | 6.5 MEDIUM |
+|  31   | CVE-2022-43252 | libde265 | 6.5 MEDIUM |
+|  32   | CVE-2022-43253 | libde265 | 6.5 MEDIUM |
+|  33   | CVE-2022-47069 | pzip | 7.8 HIGH |
+|  34   | CVE-2022-48063 | binutils | 5.5 MEDIUM |
+|  35   | CVE-2022-48064 | binutils | 5.5 MEDIUM |
+|  36   | CVE-2022-48065 | binutils | 5.5 MEDIUM |
+|  37   | CVE-2022-37115 | ncurses  | reserved   | 
+|  38   | CVE-2023-6350  | libavif | Chromium security severity: High (💰Google Bug Bounty $7000) |
+|  39   | CVE-2023-6351  | libavif | Chromium security severity: High (💰Google Bug Bounty $7000) |
+|  40   | CVE-2023-6704  | libavif | Chromium security severity: High (💰Google Bug Bounty $7000) |
+|  41   | CVE-2023-49460 | libheif | 8.8 HIGH |
+|  42   | CVE-2023-49462 | libheif | 8.8 HIGH |
+|  43   | CVE-2023-49463 | libheif | 8.8 HIGH |
+|  44   | CVE-2023-49464 | libheif | 8.8 HIGH |
+|  45   | CVE-2024-31619 | libheif | reserved |
+|  46   | CVE-2023-48106 | minizip | 8.8 HIGH |
+|  47   | CVE-2023-48107 | minizip | 8.8 HIGH |
+|  48   | CVE-2023-40305 | indent  | 5.5 MEDIUM |
+|  49   | CVE-2023-39070 | Cppcheck | 7.8 HIGH |
+|  50   | CVE-2023-49465 | libde265 | 8.8 HIGH |
+|  51   | CVE-2023-49467 | libde265 | 8.8 HIGH |
+|  52   | CVE-2023-49468 | libde265 | 8.8 HIGH |
