@@ -113,9 +113,9 @@ python3 /path/to/NestFuzz/isi.py -t 60 -o /path/to/tiff_output -l /path/to/tiff_
 |  35   | CVE-2022-48064 | binutils | 5.5 MEDIUM |
 |  36   | CVE-2022-48065 | binutils | 5.5 MEDIUM |
 |  37   | CVE-2022-37115 | ncurses  | reserved   | 
-|  38   | CVE-2023-6350  | libavif | Chromium security severity: High (💰Google Bug Bounty $7000) |
-|  39   | CVE-2023-6351  | libavif | Chromium security severity: High (💰Google Bug Bounty $7000) |
-|  40   | CVE-2023-6704  | libavif | Chromium security severity: High (💰Google Bug Bounty $7000) |
+|  38   | CVE-2023-6350  | libavif | 8.8 HIGH |
+|  39   | CVE-2023-6351  | libavif | 8.8 HIGH |
+|  40   | CVE-2023-6704  | libavif | 8.8 HIGH |
 |  41   | CVE-2023-49460 | libheif | 8.8 HIGH |
 |  42   | CVE-2023-49462 | libheif | 8.8 HIGH |
 |  43   | CVE-2023-49463 | libheif | 8.8 HIGH |
