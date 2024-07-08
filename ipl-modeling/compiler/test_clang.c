@@ -103,10 +103,22 @@ static u8 check_if_assembler(u32 argc, const char **argv) {
 }
 
 static void add_loop_handling_pass() {
+  // Xclang的用法
   cc_params[cc_par_cnt++] = "-Xclang";
   cc_params[cc_par_cnt++] = "-load";
+  // cc_params[cc_par_cnt++] = "-fpass-plugin";
   cc_params[cc_par_cnt++] = "-Xclang";
   cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libLoopHandlingPass.so", obj_path);
+  // cc_params[cc_par_cnt++] = "-Xclang";
+  // cc_params[cc_par_cnt++] = "-load-pass-plugin";
+  // cc_params[cc_par_cnt++] = "-Xclang";
+  // cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libLoopHandlingPass.so", obj_path);
+  // cc_params[cc_par_cnt++] = "-Xclang";
+  // cc_params[cc_par_cnt++] = alloc_printf("-passes={dfsan-pass}", obj_path);
+  
+  // cc_params[cc_par_cnt++] = "-mllvm";
+  // cc_params[cc_par_cnt++] = "-loop-handling-pass";
+
   cc_params[cc_par_cnt++] = "-mllvm";
   cc_params[cc_par_cnt++] = 
         alloc_printf("-chunk-exploitation-list=%s/rules/exploitation_list.txt", obj_path);
@@ -122,8 +134,7 @@ static void add_runtime() {
         alloc_printf("-Wl,--dynamic-list=%s/lib/libdfsan_rt-x86_64.a.syms", obj_path);
 
     cc_params[cc_par_cnt++] = alloc_printf("%s/lib/libruntime.so", obj_path);
-    cc_params[cc_par_cnt++] = alloc_printf("%s/lib/libDFSanIO.a", obj_path);
-    if (need_lz != 0)
+    cc_params[cc_par_cnt++] = alloc_printf("%s/lib/libDFSanIO.a", obj_path);    if (need_lz != 0)
       cc_params[cc_par_cnt++] = alloc_printf("%s/lib/libZlibRt.a", obj_path);
     char *rule_obj = getenv(TAINT_CUSTOM_RULE_VAR);
     if (rule_obj) {
@@ -148,8 +159,13 @@ static void add_runtime() {
 static void add_dfsan_pass() {
     cc_params[cc_par_cnt++] = "-Xclang";
     cc_params[cc_par_cnt++] = "-load";
+    // cc_params[cc_par_cnt++] = "-fpass-plugin";
     cc_params[cc_par_cnt++] = "-Xclang";
     cc_params[cc_par_cnt++] = alloc_printf("%s/pass/libDFSanPass.so", obj_path);
+    
+    // cc_params[cc_par_cnt++] = "-mllvm";
+    // cc_params[cc_par_cnt++] = "-dfsan-pass";
+
     cc_params[cc_par_cnt++] = "-mllvm";
     cc_params[cc_par_cnt++] =
         alloc_printf("-chunk-dfsan-abilist=%s/rules/angora_abilist.txt", obj_path);
@@ -202,8 +218,7 @@ static void edit_params(u32 argc, char **argv) {
   while (--argc) {
     u8 *cur = *(++argv);
     // FIXME
-    if (!strcmp(cur, "-O1") || !strcmp(cur, "-O2") || !strcmp(cur, "-O3")) {
-      continue;
+    if (!strcmp(cur, "-O1") || !strcmp(cur, "-O2") || !strcmp(cur, "-O3")) {      continue;
     }
     if (!strcmp(cur, "-m32"))
       bit_mode = 32;
@@ -299,7 +314,7 @@ static void edit_params(u32 argc, char **argv) {
     }
     else if (clang_type == CLANG_TRACK_TYPE) {
     cc_params[cc_par_cnt++] = alloc_printf("-L%s/lib/libcxx_track/", obj_path);
-    cc_params[cc_par_cnt++] = "-stdlib=libc++";
+    // cc_params[cc_par_cnt++] = "-stdlib=libc++";
     cc_params[cc_par_cnt++] = "-Wl,--start-group";
     cc_params[cc_par_cnt++] = "-lc++abitrack";
     cc_params[cc_par_cnt++] = "-lc++abi";
@@ -358,7 +373,6 @@ int main(int argc, char **argv) {
 
          "You can specify custom next-stage toolchain via TEST_CC and "
          "TEST_CXX. Setting\n"
-         "TEST_HARDEN enables hardening optimizations in the compiled "
          "code.\n\n",
          "xx", "xx");
 

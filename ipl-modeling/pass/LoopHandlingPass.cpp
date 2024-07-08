@@ -4,7 +4,7 @@ cmake -DCMAKE_BUILD_TYPR=Debug .
 make
 
 #RUN#
-opt -load ./libLoopHandlingPass.so --loop-handling-pass ../test/loopTest.ll
+opt-16 -load-pass-plugin=./install/pass/libLoopHandlingPass.so -passes='loop-handling-pass' test/loopTest.ll
  OR 
 clang loopTest.bc -o loopTest-loop.ll -Xclang -load -Xclang ../../install/pass/libLoopHandlingPass.so -mllvm -chunk-exploitation-list=../../install/rules/exploitation_list.txt -Xclang -load -Xclang ../../install/pass/libDFSanPass.so -mllvm -chunk-dfsan-abilist=../../install/rules/angora_abilist.txt -mllvm -chunk-dfsan-abilist=../../install/rules/dfsan_abilist.txt -emit-llvm -S
 
@@ -31,7 +31,7 @@ b
 #include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
+#include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/IVUsers.h"
@@ -40,6 +40,7 @@ b
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/Analysis/PostDominators.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -51,11 +52,15 @@ b
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Pass.h"
-#include "llvm/PassAnalysisSupport.h"
+// #include "llvm/PassAnalysisSupport.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Analysis/Passes.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -96,7 +101,7 @@ const char *OffsetFunc = "offsfn";
 
 static cl::list<std::string> ClExploitListFiles(
     "chunk-exploitation-list",
-    cl::desc("file listing functions and instructions to exploit"), cl::Hidden);
+    cl::desc("file listing functions and instructions to exploit"), cl::value_desc("filename"), cl::Hidden);
 
 // hash file name and file size
 //DJB hash function
@@ -109,8 +114,8 @@ u32 hashName(std::string str) {
     return hash;
 }
 
-struct LoopHandlingPass : public ModulePass {
-  static char ID;
+struct LoopHandlingPass : public PassInfoMixin<LoopHandlingPass> {
+  // static char ID;
   unsigned long int RandSeed = 1;
   u32 FuncID;
   // output some debug data
@@ -165,8 +170,100 @@ struct LoopHandlingPass : public ModulePass {
   FunctionCallee DebugInstLocFn;
 
 
-  LoopHandlingPass() : ModulePass(ID) {}
-  bool runOnModule(Module &M);
+  LoopHandlingPass() {}
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM) {
+    initVariables(M);
+    auto &FAM = MAM.getResult<llvm::FunctionAnalysisManagerModuleProxy>(M).getManager();
+    for (auto &F : M) {
+      if (F.isDeclaration() ||F.getName().startswith(StringRef("__chunk_")) || F.getName().startswith(StringRef("__dfsw_")) || F.getName().startswith(StringRef("asan.module"))) {
+        continue;
+      }
+
+      // get all loop info and record loop header blocks
+      auto &LI = FAM.getResult<LoopAnalysis>(F);
+      std::set<BasicBlock *> loop_header_set;
+      for (LoopInfo::iterator LIT = LI.begin(), LEND = LI.end(); LIT != LEND; ++LIT) {
+        Loop *LoopI = *LIT;
+        BasicBlock *BB = LoopI->getHeader();
+        loop_header_set.insert(BB);
+      }
+
+      auto &DomTree = FAM.getResult<DominatorTreeAnalysis>(F);
+      auto &PostDomTree = FAM.getResult<PostDominatorTreeAnalysis>(F);     
+
+      // auto &DomTree = getAnalysis<DominatorTreeWrapperPass>(F).getDomTree();
+      // auto &PostDomTree = getAnalysis<PostDominatorTreeWrapperPass>(F).getPostDomTree();
+
+      for (auto &BB : F) {
+        bool in_loop_header = false;
+        if (loop_header_set.find(&BB) != loop_header_set.end()) {
+          in_loop_header = true;
+        }
+
+        for (auto &Inst : BB) {
+          if (isa<CallInst>(&Inst)) 
+            visitCallInst(&Inst);
+          else if (isa<InvokeInst>(&Inst)) 
+            visitInvokeInst(&Inst);
+          else if (isa<LoadInst>(&Inst)) {
+            visitLoadInst(&Inst);
+          // } else if (isa<BranchInst>(&Inst)) {
+          //   visitBranchInst(&Inst, in_loop_header);
+          } else if (isa<SwitchInst>(&Inst)) {
+            visitSwitchInst(M, &Inst);
+          } else if (isa<CmpInst>(&Inst)) {
+            if (visitCmpInst(&Inst, in_loop_header)) {
+              // processBranch(&Inst, DomTree, PostDomTree, LI);
+            }
+          }
+        }
+      }
+
+      for (LoopInfo::iterator LIT = LI.begin(), LEND = LI.end(); LIT != LEND; ++LIT) {
+        Loop *L = *LIT;
+        // llvm::printLoop(*L, errs());
+        u32 hLoop = getLoopId(L);
+        // if (!L->isLoopSimplifyForm()) {
+        //   errs() << "not simplify "<< hLoop <<"\n";
+        // }
+        ConstantInt *HLoop = ConstantInt::get(Int32Ty, hLoop);
+        // Insert a global variable COUNTER in the current function.This will insert a declaration into M
+        char hexTmp[10];
+        sprintf(hexTmp, "%X", hLoop);
+        std::string hLoopStr = hexTmp;
+        std::string LoopCntName = std::string("LoopCnt_" + hLoopStr);
+        BasicBlock *header = L->getHeader();
+
+        IRBuilder<> FunctionBuilder(&*F.getEntryBlock().getFirstInsertionPt());
+        Value *LoopCnt = FunctionBuilder.CreateAlloca(Int32Ty, 0, LoopCntName);
+        FunctionBuilder.CreateStore(NumZero, LoopCnt);
+
+        //Get an IR builder. Sets the insertion point to loop header
+        IRBuilder<> HeaderBuilder(&*L->getHeader()->getFirstInsertionPt());
+        // fix
+        LoadInst *LoadLoopCnt = HeaderBuilder.CreateLoad(Int32Ty, LoopCnt);
+        HeaderBuilder.CreateCall(PushNewObjFn,{BoolTrue,  LoadLoopCnt, HLoop});
+        HeaderBuilder.CreateCall(DumpEachIterFn,{LoadLoopCnt});
+        Value *Inc = HeaderBuilder.CreateAdd(LoadLoopCnt, NumOne);
+        HeaderBuilder.CreateStore(Inc, LoopCnt);
+
+        //Set the insertion point to each ExitBlocks
+        SmallVector<BasicBlock *, 16> Exits;
+        L->getUniqueExitBlocks(Exits);
+        for(BasicBlock *BB : Exits) {
+          // errs() << "\nexit block : \n" << *BB;
+          IRBuilder<> ExitBuilder(&*BB->getFirstInsertionPt());
+          // fix
+          LoadInst *LoadLoopCnt2 = ExitBuilder.CreateLoad(Int32Ty, LoopCnt);          ExitBuilder.CreateCall(DumpEachIterFn,{LoadLoopCnt2});
+          ExitBuilder.CreateCall(PopObjFn, {HLoop});
+          ExitBuilder.CreateStore(NumZero, LoopCnt);
+          }
+      }
+
+    }
+    return PreservedAnalyses::all();
+  };
+  // bool runOnModule(Module &M);
 
   //user defined functions
   u32 getRandomNum();
@@ -196,7 +293,7 @@ struct LoopHandlingPass : public ModulePass {
   void processLoadInst(Instruction *Cond, Instruction *InsertPoint);
   void processBranch(Instruction *Cond, DominatorTree &DomTree, PostDominatorTree &PostDomTree, LoopInfo &LI);
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(AnalysisUsage &AU) const {
 
     AU.addRequiredID(LoopSimplifyID);
     AU.addRequired<ScalarEvolutionWrapperPass>();
@@ -249,8 +346,8 @@ u32 LoopHandlingPass::getRandomLoopId() { return getRandomNum(); }
 u32 LoopHandlingPass::getLoopId(Loop *L) {
   Function &F = *L->getHeader()->getParent();
   u32 h = 0;
-  std::string funcName = F.getName();
-  std::string headerName = L->getName();
+  std::string funcName = F.getName().str();
+  std::string headerName = L->getName().str();
   funcName += "$";
   funcName += headerName;
   if (headerName != "<unnamed loop>" ) {
@@ -271,7 +368,7 @@ u32 LoopHandlingPass::getLoopId(Loop *L) {
 }
 
 u32 LoopHandlingPass::getFunctionId(Function *F) {
-  return hashName(F->getName());
+  return hashName(F->getName().str());
 }
 
 void LoopHandlingPass::initVariables(Module &M) {
@@ -321,10 +418,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   FunctionType *LoadLabelDumpArgsTy = FunctionType::get(VoidTy, LoadLabelDumpArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     LoadLabelDumpFn = M.getOrInsertFunction("__chunk_get_load_label", LoadLabelDumpArgsTy, AL);   
   }
 
@@ -332,10 +427,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   FunctionType *PushNewObjArgsTy = FunctionType::get(VoidTy, PushNewObjArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     PushNewObjFn = M.getOrInsertFunction("__chunk_push_new_obj", PushNewObjArgsTy, AL);   
   }
 
@@ -343,21 +436,16 @@ void LoopHandlingPass::initVariables(Module &M) {
   FunctionType *DumpEachIterArgsTy = FunctionType::get(VoidTy, DumpEachIterArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     DumpEachIterFn = M.getOrInsertFunction("__chunk_dump_each_iter", DumpEachIterArgsTy, AL);   
   }
 
   Type *PopObjArgs[1] = {Int32Ty};
-  FunctionType *PopObjArgsTy = FunctionType::get(Int8Ty, PopObjArgs, false);
-  {
+  FunctionType *PopObjArgsTy = FunctionType::get(Int8Ty, PopObjArgs, false);  {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     PopObjFn = M.getOrInsertFunction("__chunk_pop_obj", PopObjArgsTy, AL);   
   }
 
@@ -365,10 +453,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   ChunkCmpTtTy = FunctionType::get(VoidTy, ChunkCmpTtArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     ChunkCmpTT = M.getOrInsertFunction("__chunk_trace_cmp_tt", ChunkCmpTtTy, AL);   
   }
   
@@ -376,10 +462,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   ChunkSwTtTy = FunctionType::get(VoidTy, ChunkSwTtArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     ChunkSwTT = M.getOrInsertFunction("__chunk_trace_switch_tt", ChunkSwTtTy, AL);   
   }
 
@@ -387,10 +471,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   ChunkCmpFnTtTy = FunctionType::get(VoidTy, ChunkCmpFnTtArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     ChunkCmpFnTT = M.getOrInsertFunction("__chunk_trace_cmpfn_tt", ChunkCmpFnTtTy, AL);   
   }
 
@@ -398,10 +480,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   ChunkOffsFnTtTy = FunctionType::get(VoidTy, ChunkOffsFnTtArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     ChunkOffsFnTT = M.getOrInsertFunction("__chunk_trace_offsfn_tt", ChunkOffsFnTtTy, AL);   
   }
   
@@ -409,10 +489,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   ChunkLenFnTtTy = FunctionType::get(VoidTy, ChunkLenFnTtArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     ChunkLenFnTT = M.getOrInsertFunction("__chunk_trace_lenfn_tt", ChunkLenFnTtTy, AL);   
   }
 
@@ -420,10 +498,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   ChunkTraceBranchTtTy = FunctionType::get(VoidTy, ChunkTraceBranchArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     ChunkTraceBranchTT = M.getOrInsertFunction("__chunk_trace_branch_tt", ChunkTraceBranchTtTy, AL);
   }
 
@@ -431,10 +507,8 @@ void LoopHandlingPass::initVariables(Module &M) {
   DebugInstLocTy = FunctionType::get(VoidTy, DebugInstLocFnArgs, false);
   {
     AttributeList AL;
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::NoInline);
-    AL = AL.addAttribute(CTX, AttributeList::FunctionIndex,
-                         Attribute::OptimizeNone);
+    AL = AL.addFnAttribute(CTX, Attribute::NoInline);
+    AL = AL.addFnAttribute(CTX, Attribute::OptimizeNone);
     DebugInstLocFn = M.getOrInsertFunction("__debug_inst_loc_fn", DebugInstLocTy, AL);
   }
 
@@ -493,12 +567,12 @@ void LoopHandlingPass::visitCallInst(Instruction *Inst) {
   //Handle indirect call
   if(!Callee){
     visitExploitation(Inst);
-    u32 hFunc = hashName(Caller->getName());
+    u32 hFunc = hashName(Caller->getName().str());
     processCallInst(Inst, hFunc);
     return;
   }
-
-  if (!Callee || isa<InlineAsm>(Caller->getCalledValue())) {
+// fix
+  if (!Callee || isa<InlineAsm>(Caller->getCalledOperand()->stripPointerCasts())) {
     return;
   }
 
@@ -524,7 +598,7 @@ void LoopHandlingPass::visitInvokeInst(Instruction *Inst) {
   InvokeInst *Caller = dyn_cast<InvokeInst>(Inst);
   Function *Callee = Caller->getCalledFunction();
 
-  if (!Callee || isa<InlineAsm>(Caller->getCalledValue())) {
+  if (!Callee || isa<InlineAsm>(Caller->getCalledOperand()->stripPointerCasts())) {
     return;
   }
   visitExploitation(Inst);
@@ -562,8 +636,7 @@ void LoopHandlingPass::visitBranchInst(Instruction *Inst, bool loop) {
   if (Br->isConditional()) {
     Value *Cond = Br->getCondition();
     // outs() << "\t" << Cond->getType()->getTypeID() << "\n";
-    if (Cond && Cond->getType()->isIntegerTy() && !isa<ConstantInt>(Cond)) {
-      if (!isa<CmpInst>(Cond)) {
+    if (Cond && Cond->getType()->isIntegerTy() && !isa<ConstantInt>(Cond)) {      if (!isa<CmpInst>(Cond)) {
         // From  and, or, call, phi ....
         processBoolCmp(Cond, Inst, loop);
       }
@@ -638,7 +711,8 @@ void LoopHandlingPass::visitExploitation(Instruction *Inst) {
     if (!OpArg[0]->getType()->isPointerTy() ||!OpArg[1]->getType()->isPointerTy()) return;
 
     Value *ArgSize = NumZero;
-    if (Caller->getNumArgOperands() > 2) {
+    // fix
+    if (Caller->getNumOperands() > 2) {
       ArgSize = Caller->getArgOperand(2); // int32ty
     }
 
@@ -779,7 +853,7 @@ void LoopHandlingPass::processLoadInst(Instruction *Inst, Instruction *InsertPoi
   LoadInst *LoadI = dyn_cast<LoadInst>(Inst);
   Value *LoadOpr = LoadI->getPointerOperand();
   // StringRef VarName = LoadOpr->getName();
-  Type* VarType = LoadI->getPointerOperandType()->getPointerElementType();
+  Type* VarType = LoadI->getType();
   unsigned TySize = 0;
   if (VarType->isIntegerTy())
     TySize = VarType->getIntegerBitWidth();
@@ -917,6 +991,7 @@ void LoopHandlingPass::insertDebugInstLocFn(Instruction *Inst, u32 hash, int typ
 
 }
 
+/*
 bool LoopHandlingPass::runOnModule(Module &M) {
 
   initVariables(M);
@@ -984,7 +1059,8 @@ bool LoopHandlingPass::runOnModule(Module &M) {
 
       //Get an IR builder. Sets the insertion point to loop header
       IRBuilder<> HeaderBuilder(&*L->getHeader()->getFirstInsertionPt());
-      LoadInst *LoadLoopCnt = HeaderBuilder.CreateLoad(LoopCnt);
+      // fix
+      LoadInst *LoadLoopCnt = HeaderBuilder.CreateLoad(Int32Ty, LoopCnt);
       HeaderBuilder.CreateCall(PushNewObjFn,{BoolTrue,  LoadLoopCnt, HLoop});
       HeaderBuilder.CreateCall(DumpEachIterFn,{LoadLoopCnt});
       Value *Inc = HeaderBuilder.CreateAdd(LoadLoopCnt, NumOne);
@@ -996,7 +1072,8 @@ bool LoopHandlingPass::runOnModule(Module &M) {
       for(BasicBlock *BB : Exits) {
         // errs() << "\nexit block : \n" << *BB;
         IRBuilder<> ExitBuilder(&*BB->getFirstInsertionPt());
-        LoadInst *LoadLoopCnt2 = ExitBuilder.CreateLoad(LoopCnt);
+        // fix
+        LoadInst *LoadLoopCnt2 = ExitBuilder.CreateLoad(Int32Ty, LoopCnt);
         ExitBuilder.CreateCall(DumpEachIterFn,{LoadLoopCnt2});
         ExitBuilder.CreateCall(PopObjFn, {HLoop});
         ExitBuilder.CreateStore(NumZero, LoopCnt);
@@ -1006,20 +1083,23 @@ bool LoopHandlingPass::runOnModule(Module &M) {
   }
   return true;
 } // runOnModule end
-
+*/
 } // namespace end
 
-char LoopHandlingPass::ID = 0;
+// char LoopHandlingPass::ID = 0;
 
 // Register the pass - required for (among others) opt
-static RegisterPass<LoopHandlingPass>
-    X(
-      /*PassArg=*/"loop-handling-pass", 
-      /*Name=*/"LoopHandlingPass",
-      /*CFGOnly=*/false, 
-      /*is_analysis=*/false
-      );
 
+
+// static RegisterPass<LoopHandlingPass>
+//     X(
+//       /*PassArg=*/"loop-handling-pass", 
+//       /*Name=*/"LoopHandlingPass",
+//       /*CFGOnly=*/false, 
+//       /*is_analysis=*/false
+//       );
+
+/*
 static void registerLoopHandlingPass(const PassManagerBuilder &,
                                  legacy::PassManagerBase &PM) {
   PM.add(llvm::createLoopSimplifyPass());
@@ -1037,3 +1117,23 @@ static RegisterStandardPasses
 static RegisterStandardPasses
     RegisterLoopHandlingPass0(PassManagerBuilder::EP_EnabledOnOptLevel0,
                           registerLoopHandlingPass);
+
+*/
+extern "C" PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
+  return {
+    LLVM_PLUGIN_API_VERSION, "LoopHandlingPass", LLVM_VERSION_STRING,
+    [](llvm::PassBuilder &PB) {
+      // 注册为一个 function pass
+      PB.registerPipelineParsingCallback(
+        [](StringRef Name, ModulePassManager &MPM,
+           ArrayRef<PassBuilder::PipelineElement>) {
+          if (Name == "loop-handling-pass") {  
+            MPM.addPass(LoopHandlingPass());
+            return true;
+          }
+          return false;
+        }
+      );
+    }
+  };
+}
