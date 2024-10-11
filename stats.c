@@ -266,15 +266,15 @@ void show_stats(void) {
 
   /* Let's start by drawing a centered banner. */
 
-  banner_len = (crash_mode ? 24 : 22) + strlen(VERSION) + strlen(use_banner);
+  banner_len = (crash_mode ? 24 : 10) + strlen(use_banner);
   banner_pad = (80 - banner_len) / 2;
   memset(tmp, ' ', banner_pad);
 
-  sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN " (%s)",
-          crash_mode ? cPIN "peruvian were-rabbit" : cYEL "american fuzzy lop",
+  sprintf(tmp + banner_pad, "%s " " (%s)",
+          crash_mode ? cPIN "peruvian were-rabbit" : cYEL "NestFuzz",
           use_banner);
 
-  SAYF("\n%s\n\n", tmp);
+  SAYF("\n%s\n", tmp);
 
   /* "Handy" shortcuts for drawing boxes... */
 
